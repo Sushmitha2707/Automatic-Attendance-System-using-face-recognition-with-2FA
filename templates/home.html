@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Home - Smart Attendance System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <nav>
+        <ul>
+            <li><a href="{{ url_for('home') }}">Home</a></li>
+            <li><a href="{{ url_for('upload') }}">Upload</a></li>
+            <li><a href="{{ url_for('view') }}">View</a></li>
+            <li><a href="{{ url_for('logout') }}">Logout</a></li>
+        </ul>
+    </nav>
+
+    <div class="home-container">
+        <div class="home-overlay">
+            <div class="home-content">
+                <h1>Smart Attendance System</h1>
+                <p>Streamline your attendance management with our advanced facial recognition system</p>
+                <img src="{{ url_for('static', filename='images/MVJCE-Bangalore.webp') }}" alt="MVJ College" style="max-width: 100%; height: auto; margin-top: 2rem; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.2);">
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html>
+<!-- Move all styles to the head section -->
+<head>
+    <title>Attendance System</title>
+    <style>
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+        }
+        .form-group {
+            margin: 15px 0;
+        }
+        .form-group select {
+            padding: 8px;
+            margin: 0 10px;
+            width: 200px;
+        }
+        .video-feed {
+            width: 100%;
+            max-width: 640px;
+            margin: 20px auto;
+            border: 2px solid #ddd;
+        }
+        .controls {
+            margin: 20px 0;
+        }
+        .btn {
+            padding: 10px 20px;
+            margin: 0 10px;
+            cursor: pointer;
+        }
+        .btn-primary { background-color: #007bff; color: white; border: none; }
+        .btn-danger { background-color: #dc3545; color: white; border: none; }
+        #timer {
+            font-size: 24px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .success-message {
+            color: green;
+            font-weight: bold;
+            margin: 10px 0;
+            display: none;
+        }
+        .verification-failed {
+            margin: 20px auto;
+            padding: 20px;
+            max-width: 400px;
+            border: 1px solid #ffcdd2;
+            border-radius: 8px;
+            background-color: #ffebee;
+            text-align: center;
+        }
+
+        .error-message {
+            color: #d32f2f;
+            font-weight: bold;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .manual-verification {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        #otp-section {
+            margin: 20px auto;
+            padding: 20px;
+            max-width: 400px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background-color: #f9f9f9;
+            text-align: center;
+        }
+
+        #otp-message {
+            margin-bottom: 15px;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .form-input, #manual-usn, #otp-input {
+            width: 200px;
+            padding: 10px;
+            margin: 10px auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            text-align: center;
+            font-size: 14px;
+            display: block;
+        }
+
+        #otp-input {
+            letter-spacing: 2px;
+            font-size: 16px;
+        }
+
+        .otp-verify-btn {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 25px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px auto;
+            display: block;
+            font-size: 14px;
+        }
+
+        .otp-verify-btn:hover {
+            background-color: #0056b3;
+        }
+
+        #voice-result {
+            margin: 20px auto;
+            text-align: center;
+            font-weight: bold;
+            max-width: 400px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Face Recognition Attendance System</h1>
+        
+        <!-- Selection Controls -->
+        <div class="form-group">
+            <select id="branch" required>
+                <option value="">Select Branch</option>
+                <option value="Artificial Intelligence and Machine Learning">AIML</option>
+                <option value="Computer Science and Engineering">CSE</option>
+                <option value="Electronics and Communications">ECE</option>
+                <option value="Information Science and Engineering">ISE</option>
+            </select>
+
+            <select id="section" required>
+                <option value="">Select Section</option>
+                <option value="A">A</option>
+                <option value="B">B</option>
+                <option value="C">C</option>
+            </select>
+
+            <select id="semester" required>
+                <option value="">Select Semester</option>
+                <option value="1">1st Semester</option>
+                <option value="2">2nd Semester</option>
+                <option value="3">3rd Semester</option>
+                <option value="4">4th Semester</option>
+                <option value="5">5th Semester</option>
+                <option value="6">6th Semester</option>
+                <option value="7">7th Semester</option>
+                <option value="8">8th Semester</option>
+            </select>
+        </div>
+
+        <!-- Video Feed -->
+        <div class="video-container">
+            <img src="{{ url_for('attendance.video_feed') }}" class="video-feed">
+        </div>
+
+        <!-- Timer and Controls -->
+        <div class="controls">
+            <div id="timer"></div>
+            <button id="startRecording" class="btn btn-primary">Start Recording</button>
+            <button id="stopRecording" class="btn btn-danger" disabled>Stop Recording</button>
+        </div>
+
+        <!-- Success Message -->
+        <div id="successMessage" class="success-message">
+            Attendance recorded successfully!
+        </div>
+
+        <!-- Voice Result Display -->
+        <div id="voice-result" style="margin-top: 20px; font-weight: bold;"></div>
+    </div>
+
+    <!-- Main Script -->
+    <script>
+        // Branch-section mapping
+        const branchSections = {
+            'Artificial Intelligence and Machine Learning': ['A'],
+            'Computer Science and Engineering': ['A', 'B', 'C', 'D'],
+            'Information Science and Engineering': ['A', 'B'],
+            'Electronics and Communications': ['A', 'B', 'C']
+        };
+    
+        let timerInterval;
+        let faceCheckInterval;
+        let voiceStarted = false;
+        let lastRecognizedUSN = null;
+        let methodUsed = null;  // "Voice" or "OTP" will be set later
+
+
+        // Update sections when branch changes
+        document.getElementById('branch').addEventListener('change', function() {
+            const sectionSelect = document.getElementById('section');
+            const selectedBranch = this.value;
+            const sections = branchSections[selectedBranch] || [];
+            
+            sectionSelect.innerHTML = '<option value="">Select Section</option>';
+            sections.forEach(section => {
+                const option = document.createElement('option');
+                option.value = section;
+                option.textContent = section;
+                sectionSelect.appendChild(option);
+            });
+        });
+
+        function showSuccessMessage() {
+            const successMsg = document.getElementById('successMessage');
+            successMsg.style.display = 'block';
+            setTimeout(() => {
+                successMsg.style.display = 'none';
+            }, 3000);
+        }
+
+        function startTimer(duration) {
+            let timer = duration;
+            document.getElementById('timer').textContent = timer + 's';
+            
+            timerInterval = setInterval(() => {
+                timer--;
+                document.getElementById('timer').textContent = timer + 's';
+                
+                if (timer <= 0) {
+                    clearInterval(timerInterval);
+                    clearInterval(faceCheckInterval);  // Stop face recognition check
+                    document.getElementById('timer').textContent = '';
+                    
+                    // Start voice recognition sequence after face timer completes
+                    setTimeout(() => {
+                        const voiceResult = document.getElementById('voice-result');
+                        voiceResult.innerHTML = "🎙️ Please speak now for voice verification...";
+                        
+                        // Reduced countdown from 3 to 2 seconds
+                        let countdown = 3;
+                        const countdownInterval = setInterval(() => {
+                            voiceResult.innerHTML = `🎙️ Starting voice verification in ${countdown}...`;
+                            countdown--;
+                            
+                            if (countdown < 0) {
+                                clearInterval(countdownInterval);
+                                voiceResult.innerHTML = "🎙️ Recording voice...";
+                                triggerVoiceRecognition(lastRecognizedUSN);
+                            }
+                        }, 1000);
+                    }, 500); // Reduced delay from 1000ms to 500ms after face recognition
+                }
+            }, 1000);
+        }
+
+        function startFaceRecognitionCheck() {
+            faceCheckInterval = setInterval(async () => {
+                try {
+                    const response = await fetch('{{ url_for("attendance.check_face_status") }}');
+                    const data = await response.json();
+                    
+                    if (data.face_recognized && !voiceStarted) {
+                        lastRecognizedUSN = data.usn;  // Store the USN for later use
+                        // Add face recognition success message
+                        const voiceResult = document.getElementById('voice-result');
+                        voiceResult.innerHTML = `✅ Face recognized for USN: ${data.usn}`;
+                    }
+                } catch (error) {
+                    console.error('Error checking face status:', error);
+                }
+            }, 1000);
+        }
+
+        // Add event listeners for selection fields
+        function enableStartButton() {
+            const branch = document.getElementById('branch').value;
+            const section = document.getElementById('section').value;
+            const semester = document.getElementById('semester').value;
+            
+            // Only enable if all fields are selected
+            if (branch && section && semester) {
+                document.getElementById('startRecording').disabled = false;
+            }
+        }
+
+        // Update branch change listener to include enableStartButton
+        document.getElementById('branch').addEventListener('change', function() {
+            const sectionSelect = document.getElementById('section');
+            const selectedBranch = this.value;
+            const sections = branchSections[selectedBranch] || [];
+            
+            sectionSelect.innerHTML = '<option value="">Select Section</option>';
+            sections.forEach(section => {
+                const option = document.createElement('option');
+                option.value = section;
+                option.textContent = section;
+                sectionSelect.appendChild(option);
+            });
+            enableStartButton();
+        });
+
+        document.getElementById('section').addEventListener('change', enableStartButton);
+        document.getElementById('semester').addEventListener('change', enableStartButton);
+
+        // Add start recording event listener here
+        document.getElementById('startRecording').addEventListener('click', function() {
+            // Disable start button and enable stop button
+            this.disabled = true;
+            document.getElementById('stopRecording').disabled = false;
+            
+            // Start the face recognition timer (5 seconds)
+            startTimer(5);
+            
+            // Start checking for face recognition
+            startFaceRecognitionCheck();
+            
+            // Reset voice started flag
+            voiceStarted = false;
+        
+            // Start face recognition process
+            fetch('{{ url_for("attendance.start_recording") }}', {  // Fixed endpoint name
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    branch: document.getElementById('branch').value,
+                    section: document.getElementById('section').value,
+                    semester: document.getElementById('semester').value
+                })
+            });
+        });
+
+        // Continue with existing functions (triggerVoiceRecognition, sendOTP, etc.)
+        async function triggerVoiceRecognition(usn) {
+            const resultDiv = document.getElementById('voice-result');
+            voiceStarted = true;
+        
+            try {
+                // Clear previous messages
+                resultDiv.innerHTML = "🎙️ Get ready to speak...";
+                
+                // Add a small delay before recording starts
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                resultDiv.innerHTML = "🎙️ Recording... Please speak clearly";
+                
+                // Make the voice verification request
+                const response = await fetch('{{ url_for("voice.verify_voice") }}', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        usn: usn,
+                        timestamp: Date.now() // Add timestamp to prevent caching
+                    })
+                });
+        
+                const data = await response.json();
+                console.log('Voice verification response:', data); // Debug log
+        
+                if (data.success) {
+                    resultDiv.innerHTML = `✅ Voice verified for ${usn} (Score: ${data.score?.toFixed(4) || 'N/A'})`;
+                    showSuccessMessage();
+                    methodUsed = "Voice";
+                    markAttendance(usn);
+                    return true;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="verification-failed">
+                            <p class="error-message">⚠️ Voice verification failed (Score: ${data.score?.toFixed(4) || 'N/A'})</p>
+                            <div class="manual-verification">
+                                <input type="text" id="manual-usn" value="${usn}" class="form-input">
+                                <button onclick="sendManualOTP()" class="otp-verify-btn">Send OTP</button>
+                            </div>
+                        </div>`;
+                    return false;
+                }
+            } catch (error) {
+                console.error('Voice verification error:', error);
+                resultDiv.innerHTML = `❌ Error: ${error.message}`;
+                return false;
+            }
+        }
+
+        // Add this new function
+        async function sendManualOTP() {
+            const manualUSN = document.getElementById('manual-usn').value;
+            if (!manualUSN) {
+                alert("Please enter your USN");
+                return;
+            }
+            await sendOTP(manualUSN);
+        }
+
+        async function verifyOTP() {
+            const usn = document.getElementById('current-usn').value;
+            const otp = document.getElementById('otp-input').value;
+    
+            try {
+                const response = await fetch('{{ url_for("voice.verify_otp") }}', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        usn: usn,
+                        otp: otp 
+                    })
+                });
+    
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('otp-message').innerHTML = "✅ OTP verified successfully";
+                    document.getElementById('otp-section').style.display = 'none';
+                    document.getElementById('voice-result').innerHTML = `✅ OTP verified. Marking attendance...`;
+                    methodUsed = "OTP";  // Set method first
+                    markAttendance(usn);  // Call only once
+                    return true;
+                } else {
+                    document.getElementById('otp-message').innerHTML = "❌ Invalid OTP";
+                }
+            } catch (error) {
+                document.getElementById('otp-message').innerHTML = "❌ Error verifying OTP";
+            }
+        }
+
+        async function markAttendance(usn) {
+            try {
+                const response = await fetch('/mark_attendance', {  // Updated URL
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        usn: usn,
+                        branch: document.getElementById('branch').value,
+                        section: document.getElementById('section').value,
+                        semester: document.getElementById('semester').value,
+                        verification_method: `Face + ${methodUsed}`,
+                        status: "Present"
+                    })
+                });
+    
+                const data = await response.json();
+                if (data.success) {
+                    document.getElementById('voice-result').innerHTML += `<br>✅ ${data.message}`;
+                    showSuccessMessage();
+                    // Reset UI elements
+                    document.getElementById('startRecording').disabled = false;
+                    document.getElementById('stopRecording').disabled = true;
+                    document.getElementById('otp-section').style.display = 'none';
+                } else {
+                    throw new Error(data.message || 'Failed to mark attendance');
+                }
+            } catch (error) {
+                console.error('Attendance marking error:', error);
+                document.getElementById('voice-result').innerHTML += `<br>⚠️ Error: ${error.message}`;
+            }
+        }
+
+        // Modify the selection field event listeners to disable the start button
+        document.getElementById('branch').addEventListener('change', function() {
+            document.getElementById('startRecording').disabled = true;  // Disable on field change
+            // ... rest of the existing branch change code ...
+        });
+
+        document.getElementById('section').addEventListener('change', function() {
+            document.getElementById('startRecording').disabled = true;  // Disable on field change
+            enableStartButton();
+        });
+
+        document.getElementById('semester').addEventListener('change', function() {
+            document.getElementById('startRecording').disabled = true;  // Disable on field change
+            enableStartButton();
+        });
+        async function sendOTP(usn) {
+            try {
+                // Validate USN format
+                if (!usn || !usn.match(/^1MJ21AI\d{3}$/)) {
+                    alert("❌ Invalid USN format. Please enter a valid USN (e.g., 1MJ21AI002)");
+                    return;
+                }
+
+                const response = await fetch('{{ url_for("voice.verify_otp") }}', {  // Using verify_otp endpoint
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        usn: usn,
+                        otp: "send"  // Special flag to indicate OTP sending request
+                    })
+                });
+        
+                const data = await response.json();
+                console.log('OTP Send Response:', data);
+                
+                if (data.success) {
+                    document.getElementById('current-usn').value = usn;
+                    document.getElementById('otp-section').style.display = 'block';
+                    document.getElementById('otp-message').innerHTML = "📧 OTP sent to your email";
+                } else {
+                    const errorMessage = data.message || "Unknown error occurred";
+                    document.getElementById('otp-message').innerHTML = `❌ ${errorMessage}`;
+                    document.getElementById('otp-section').style.display = 'block';
+                }
+            } catch (error) {
+                console.error('OTP Send Error:', error);
+                document.getElementById('otp-message').innerHTML = `❌ Error: ${error.message}`;
+                document.getElementById('otp-section').style.display = 'block';
+            }
+        }
+       
+    </script>
+        
+    <!-- Update the OTP section HTML -->
+    <div id="otp-section" style="display: none;">
+        <div id="otp-message"></div>
+        <input type="hidden" id="current-usn">
+        <input type="text" id="otp-input" placeholder="Enter OTP" maxlength="6">
+        <br>
+        <button onclick="verifyOTP()" class="otp-verify-btn">Verify OTP</button>
+    </div>
+</body>
+</html>

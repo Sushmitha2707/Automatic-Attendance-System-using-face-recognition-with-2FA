@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dashboard - Smart Attendance System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <nav>
+        <ul>
+            <li><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+            <li><a href="{{ url_for('upload_students') }}">Upload Students</a></li>
+            <li><a href="{{ url_for('view_students') }}">View Students</a></li>
+            <li><a href="{{ url_for('attendance.take_attendance') }}">Take Attendance</a></li>
+            <li><a href="{{ url_for('attendance_details') }}">Attendance Details</a></li>
+            <li><a href="{{ url_for('help') }}">Help</a></li>
+            <li><a href="{{ url_for('logout') }}">Logout</a></li>
+        </ul>
+    </nav>
+
+    <div class="container">
+        <h1>WELCOME TO SMART ATTENDANCE SYSTEM</h1>
+        <div class="dashboard-image">
+            <img src="{{ url_for('static', filename='image/Smart Attendance system.jpg') }}" alt="Smart Attendance System">
+        </div>
+    </div>
+</body>
+</html>

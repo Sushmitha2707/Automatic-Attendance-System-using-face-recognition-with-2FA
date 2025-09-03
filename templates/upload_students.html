@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>MVJ College of Engineering - Student Data Upload</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <nav>
+        <ul>
+            <li><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+            <li><a href="{{ url_for('upload_students') }}">Upload Students</a></li>
+            <li><a href="{{ url_for('view_students') }}">View Students</a></li>
+            <li><a href="{{ url_for('attendance.take_attendance') }}">Take Attendance</a></li>
+            <li><a href="{{ url_for('attendance.get_attendance') }}">View Attendance</a></li>
+            <li><a href="{{ url_for('attendance_details') }}">Attendance Details</a></li>
+            <li><a href="{{ url_for('help') }}">Help</a></li>
+            <li><a href="{{ url_for('logout') }}">Logout</a></li>
+        </ul>
+    </nav>
+
+    <div class="container">
+        <div class="upload-section">
+            <div class="upload-header">
+                <h2>Student Data Management</h2>
+                <p>Upload student information using Excel file format (.xlsx)</p>
+            </div>
+
+            <div id="messageArea"></div>
+
+            <div id="uploadSection">
+                <form id="uploadForm" method="POST" enctype="multipart/form-data">
+                    <div class="form-group">
+                        <label>Branch:</label>
+                        <select name="branch" id="branch" required>
+                            <option value="">Select Branch</option>
+                            <option value="AIML">Artificial Intelligence and Machine Learning</option>
+                            <option value="CSE">Computer Science and Engineering</option>
+                            <option value="ECE">Electronics and Communications</option>
+                            <option value="ISE">Information Science</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Section:</label>
+                        <select name="section" id="section" required>
+                            <option value="">Select Section</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Semester:</label>
+                        <select name="semester" id="semester" required>
+                            <option value="">Select Semester</option>
+                            {% for sem in semesters %}
+                                <option value="{{ sem }}">{{ sem }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="file-upload-container">
+                        <label for="fileInput" class="file-label">Choose Excel File</label>
+                        <input type="file" id="fileInput" name="file" accept=".xlsx" required>
+                        <p class="file-upload-text">
+                            Please ensure your Excel file contains the following columns:<br>
+                            Name, USN, Branch, Semester, Email ID, Phone number, Image, Voice record
+                        </p>
+                    </div>
+
+                    <div class="loading">
+                        <div class="loading-spinner"></div>
+                        <p>Uploading student data...</p>
+                    </div>
+
+                    <button type="submit" class="upload-btn">Upload Student Data</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            function updateSections() {
+                var branch = $('#branch').val();
+                $.getJSON('/get_sections/' + branch, function(data) {
+                    var section = $('#section');
+                    section.empty();
+                    section.append('<option value="">Select Section</option>');
+                    $.each(data.sections, function(index, value) {
+                        section.append('<option value="' + value + '">' + value + '</option>');
+                    });
+                });
+            }
+
+            $('#branch').change(updateSections);
+
+            function checkUploadStatus() {
+                var branch = $('#branch').val();
+                var section = $('#section').val();
+                var semester = $('#semester').val();
+
+                if (branch && section && semester) {
+                    $.getJSON('/check_upload_status', {
+                        branch: branch,
+                        section: section,
+                        semester: semester
+                    }, function(data) {
+                        if (data.exists) {
+                            $('#uploadForm').hide();
+                            $('#uploadSection').append('<p class="info-message">File already uploaded for this combination. Please delete existing data before uploading new file.</p>');
+                        } else {
+                            $('#uploadForm').show();
+                            $('#uploadSection .info-message').remove();
+                        }
+                    });
+                }
+            }
+
+            $('#branch, #section, #semester').change(checkUploadStatus);
+
+            $('#uploadForm').submit(function(e) {
+                e.preventDefault();
+                $('.loading').show();
+                
+                var formData = new FormData(this);
+                
+                $.ajax({
+                    url: '/upload_students',
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function(response) {
+                        $('.loading').hide();
+                        var messageClass = response.success ? 'success' : 'error';
+                        $('#messageArea').html('<div class="alert alert-' + messageClass + '">' + response.message + '</div>');
+                        
+                        if (response.success) {
+                            setTimeout(function() {
+                                window.location.href = '/view_students';
+                            }, 2000);
+                        }
+                    },
+                    error: function() {
+                        $('.loading').hide();
+                        $('#messageArea').html('<div class="alert alert-error">An error occurred while uploading the file.</div>');
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

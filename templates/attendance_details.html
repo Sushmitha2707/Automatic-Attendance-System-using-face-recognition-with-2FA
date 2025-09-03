@@ -1,0 +1,132 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+    <h2>Attendance Details</h2>
+    <div class="form-group">
+        <label for="branch">Branch:</label>
+        <select id="branch" class="form-control">
+            <option value="">Select Branch</option>
+            {% for branch in branches %}
+            <option value="{{ branch }}">{{ branch }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="form-group">
+        <label for="section">Section:</label>
+        <select id="section" class="form-control">
+            <option value="">Select Section</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <label for="semester">Semester:</label>
+        <select id="semester" class="form-control">
+            <option value="">Select Semester</option>
+            {% for semester in semesters %}
+            <option value="{{ semester }}">{{ semester }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="form-group">
+        <label for="date">Date:</label>
+        <input type="date" id="date" class="form-control">
+    </div>
+    <button onclick="getAttendance()" class="btn btn-primary">View Attendance</button>
+    <button onclick="exportAttendance('csv')" class="btn btn-success">Export CSV</button>
+    <button onclick="exportAttendance('excel')" class="btn btn-info">Export Excel</button>
+    
+    <div id="attendanceTable" class="mt-4"></div>
+</div>
+
+<script>
+    // Update sections when branch changes
+    document.getElementById('branch').addEventListener('change', function() {
+        const branch = this.value;
+        fetch(`/get_sections/${branch}`)
+            .then(response => response.json())
+            .then(data => {
+                const sectionSelect = document.getElementById('section');
+                sectionSelect.innerHTML = '<option value="">Select Section</option>';
+                data.sections.forEach(section => {
+                    sectionSelect.innerHTML += `<option value="${section}">${section}</option>`;
+                });
+            });
+    });
+
+    function getAttendance() {
+        const branch = document.getElementById('branch').value;
+        const section = document.getElementById('section').value;
+        const semester = document.getElementById('semester').value;
+        const date = document.getElementById('date').value;
+
+        if (!branch || !section || !semester || !date) {
+            alert('Please select all fields');
+            return;
+        }
+
+        // Use query parameters instead of POST
+        fetch(`/get_attendance?branch=${encodeURIComponent(branch)}&section=${encodeURIComponent(section)}&semester=${encodeURIComponent(semester)}&date=${encodeURIComponent(date)}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.attendance) {
+                    // Handle both array and empty array cases
+                    const attendanceData = Array.isArray(data.attendance) ? data.attendance : [];
+                    displayAttendance(attendanceData);
+                } else {
+                    document.getElementById('attendanceTable').innerHTML = '<p class="alert alert-info">No attendance records found for the selected criteria.</p>';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('attendanceTable').innerHTML = '<p class="alert alert-danger">Error fetching attendance data.</p>';
+            });
+    }
+
+    function displayAttendance(attendance) {
+        if (!attendance || attendance.length === 0) {
+            document.getElementById('attendanceTable').innerHTML = '<p class="alert alert-info">No attendance records found for the selected criteria.</p>';
+            return;
+        }
+
+        const table = `
+            <table class="table table-striped">
+                <thead class="thead-dark">
+                    <tr>
+                        <th>USN</th>
+                        <th>Name</th>
+                        <th>Time</th>
+                        <th>Verification Method</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="attendanceTableBody">
+                    ${attendance.map(record => `
+                        <tr>
+                            <td>${record.usn || '-'}</td>
+                            <td>${record.name || '-'}</td>
+                            <td>${record.time || '-'}</td>
+                            <td>${record.verification_method || '-'}</td>
+                            <td><span class="badge ${record.status === 'Present' ? 'badge-success' : 'badge-danger'}">${record.status || 'Absent'}</span></td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+        document.getElementById('attendanceTable').innerHTML = table;
+    }
+
+    function exportAttendance(format) {
+        const branch = document.getElementById('branch').value;
+        const section = document.getElementById('section').value;
+        const semester = document.getElementById('semester').value;
+        const date = document.getElementById('date').value;
+
+        if (!branch || !section || !semester || !date) {
+            alert('Please select all fields');
+            return;
+        }
+
+        window.location.href = `/export_attendance?branch=${branch}&section=${section}&semester=${semester}&date=${date}&format=${format}`;
+    }
+</script>
+{% endblock %}
