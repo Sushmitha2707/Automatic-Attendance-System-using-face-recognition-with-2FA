@@ -138,17 +138,6 @@ project/
 
 ```
 
----
-
-## 👥 Team
-
-- Afra Falakh  
-- Madhuri  
-- Nithya P  
-- Sushmitha H K  
-
----
-
 ## 🎓 Academic Details
 
 - Degree: B.E in Artificial Intelligence & Machine Learning  
