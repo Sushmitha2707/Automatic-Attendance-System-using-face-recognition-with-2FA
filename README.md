@@ -1,5 +1,3 @@
-# Automatic-Attendance-System-using-face-recognition-with-2FA
-
 # 🚀 Automatic Attendance System using Face Recognition with 2FA
 
 ## 📌 Project Summary
